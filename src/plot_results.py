@@ -1,52 +1,70 @@
-import matplotlib.pyplot as plt
 import numpy as np
-from src.ode_model import ODEModel
-from src.euler_solver import EulerSolver
+import matplotlib.pyplot as plt
 
-def exact_solution(t, y0=1.0):
-    """Computes the exact solution y(t) = y0 * exp(-t)"""
-    return y0 + (-1000)*(t-np.sin(-t))
+# Exponential Decay ODE
+def exponential_decay_ode(y, t, k):
+    return -k * y
 
-# Set up the ODE model
-y0 = 1.0
-t0 = 0.0
-tf = 3.0
-dt = 0.001
-from numba import njit
+def exponential_decay_exact(t, y0, k):
+    return y0 * np.exp(-k * t)
 
-@njit
-def decay(y, t):
-    return -1000*(y-np.cos(t))
+# Logistic Growth ODE
+def logistic_growth_ode(y, t, r, K):
+    return r * y * (1 - y / K)
 
-model = ODEModel(f=decay, y_0=y0, t_0=t0, t_f=tf, dt=dt)
+def logistic_growth_exact(t, y0, r, K):
+    return K / (1 + (K / y0 - 1) * np.exp(-r * t))
 
+# Euler's Method for Numerical Solution
+def euler_solver(f, y0, t0, T, dt, *args):
+    t_values = np.arange(t0, T, dt)
+    y_values = np.zeros_like(t_values)
+    y_values[0] = y0
 
-# Solve using Euler's method
-solver = EulerSolver(model, t0, tf, dt)
-t_values, y_numerical = solver.solve()
+    for i in range(1, len(t_values)):
+        y_values[i] = y_values[i-1] + dt * f(y_values[i-1], t_values[i-1], *args)
 
-# Compute exact solution
-y_exact = exact_solution(t_values, y0)
+    return t_values, y_values
 
-# Compute relative difference
-relative_diff = np.abs(y_exact - y_numerical) / np.abs(y_exact)
+# Parameters
+y0 = 1
+t0 = 0
+T = 10
+dt = 0.01
+k = 0.5  # Decay rate for exponential decay
+r = 0.2  # Growth rate for logistic growth
+K = 10   # Carrying capacity for logistic growth
 
-# Plot results
-fig, ax = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
+# Solve Exponential Decay ODE
+t_exp, y_exp_euler = euler_solver(exponential_decay_ode, y0, t0, T, dt, k)
+y_exp_exact = exponential_decay_exact(t_exp, y0, k)
 
-# Upper panel: Numerical vs. Exact solution
-ax[0].plot(t_values, y_numerical, label="Euler's Method", linestyle='--', marker='o')
-ax[0].plot(t_values, y_exact, label="Exact Solution", linestyle='-')
-ax[0].set_ylabel("y(t)")
-ax[0].legend()
-ax[0].set_title("Numerical vs. Exact Solution")
+# Solve Logistic Growth ODE
+t_log, y_log_euler = euler_solver(logistic_growth_ode, y0, t0, T, dt, r, K)
+y_log_exact = logistic_growth_exact(t_log, y0, r, K)
 
-# Lower panel: Relative Difference
-ax[1].plot(t_values, relative_diff, label="Relative Difference", color="red")
-ax[1].set_xlabel("Time t")
-ax[1].set_ylabel("Relative Difference")
-ax[1].set_yscale("log")  # Log scale for better visualization
-ax[1].legend()
+# Plot Results
+plt.figure(figsize=(12, 6))
+
+# Exponential Decay
+plt.subplot(1, 2, 1)
+plt.plot(t_exp, y_exp_euler, label="Euler Method", linestyle="-", color="blue")
+plt.plot(t_exp, y_exp_exact, label="Exact Solution", linestyle="--", color="black")
+plt.xlabel("Time t")
+plt.ylabel("y(t)")
+plt.title("Exponential Decay ODE")
+plt.legend()
+plt.grid()
+
+# Logistic Growth
+plt.subplot(1, 2, 2)
+plt.plot(t_log, y_log_euler, label="Euler Method", linestyle="-", color="red")
+plt.plot(t_log, y_log_exact, label="Exact Solution", linestyle="--", color="black")
+plt.xlabel("Time t")
+plt.ylabel("y(t)")
+plt.title("Logistic Growth ODE")
+plt.legend()
+plt.grid()
 
 plt.tight_layout()
 plt.show()
